@@ -2,7 +2,7 @@
 # @Author: Shubham Bansal
 # @Date:   2018-08-26 01:03:45
 # @Last Modified by:   Shubham Bansal
-# @Last Modified time: 2018-08-26 03:21:25
+# @Last Modified time: 2018-08-26 03:26:29
 import graphene
 from graphene_django import DjangoObjectType
 from graphql import GraphQLError
@@ -24,17 +24,34 @@ class VoteType(DjangoObjectType):
 
 class Query(graphene.ObjectType):
   # Add the search parameter inside our links field
-  links = graphene.List(LinkType, search=graphene.String())
+  # Add the first and skip parameters
+  links = graphene.List(
+    LinkType,
+    search=graphene.String(),
+    first=graphene.Int(),
+    skip=graphene.Int(),
+  )
   votes = graphene.List(VoteType)
 
-  def resolve_links(self, info, search=None, **kwargs):
+  # Using the first and skip to slice the Django queryset
+  def resolve_links(self, info, search=None, first=None, skip=None, **kwargs):
     # The value sent with the search parameter will be on the args variable
+    qs = Links.objects.all()
+
     if search:
       filter = (
         Q(url__icontains=search)|
         Q(description__icontains=search)
       )
-    return Links.objects.filter(filter)
+      qs = qs.filter(filter)
+
+    if skip:
+      qs = qs[skip::]
+
+    if first:
+      qs = qs[:first]
+
+    return qs
 
   def resolve_votes(self, info, **kwargs):
     return Vote.objects.all()
